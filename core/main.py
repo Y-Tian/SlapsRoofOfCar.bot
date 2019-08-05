@@ -6,6 +6,7 @@ from sklearn import preprocessing
 from sklearn.model_selection import train_test_split
 from keras.models import Sequential
 from keras.layers import Dense
+import statistics
 
 autotrader_url = 'http://myslu.stlawu.edu/~clee/dataset/autotrader/retrieve.php?'
 csv_file = 'data.csv'
@@ -51,8 +52,10 @@ def get_all_preprocessing():
     dataset = df.values
     dataset_x_prep_a = np.array(dataset[:,:1])
     dataset_x_prep_b = np.array(dataset[:,2:])
-    X = np.concatenate((dataset_x_prep_a, dataset_x_prep_a), 1)
-    Y = dataset[:,1:2]
+    X = np.concatenate((dataset_x_prep_a, dataset_x_prep_b), 1)
+    Y_temp = dataset[:,1:2]
+    median_price = get_median_price(Y_temp)
+    Y = format_input_dataset(Y_temp, median_price)
     min_max_scaler = preprocessing.MinMaxScaler()
     X_scale = min_max_scaler.fit_transform(X)
     Y_scale = min_max_scaler.fit_transform(Y)
@@ -60,11 +63,34 @@ def get_all_preprocessing():
     X_val, X_test, Y_val, Y_test = train_test_split(X_val_and_test, Y_val_and_test, test_size=0.5)
     return X_train, X_val, X_test, Y_train, Y_val, Y_test
 
+def get_median_price(dataset):
+    prices = []
+    for item in dataset:
+        for price in item:
+            prices.append(price)
+
+    return statistics.median(prices)
+
+def compare_above_below_median(value, median):
+    if value >= median:
+        return 1
+    return 0
+
+def format_input_dataset(dataset, median):
+    new_dataset = []
+    for item in dataset:
+        temp_dataset = []
+        for price in item:
+            temp_dataset.append(compare_above_below_median(price, median))
+        new_dataset.append(temp_dataset)
+    return new_dataset
+
 def get_keras_model(X_train, X_val, X_test, Y_train, Y_val, Y_test):
-    model = Sequential([Dense(64, activation='relu', input_shape=(2,)), Dense(64, activation='relu'), Dense(1, activation='sigmoid'),])
+    # model = Sequential([Dense(23, activation='relu', input_shape=(2,)), Dense(23, activation='relu'), Dense(1, activation='sigmoid'),])
+    model = Sequential([Dense(16, activation='relu', input_shape=(2,)), Dense(16, activation='relu'), Dense(1, activation='sigmoid'),])
     model.compile(optimizer='sgd', loss='binary_crossentropy', metrics=['accuracy'])
-    hist = model.fit(X_train, Y_train, batch_size=16, epochs=1000, validation_data=(X_val, Y_val))
-    # model.evaluate(X_test, Y_test)[1]
+    hist = model.fit(X_train, Y_train, batch_size=14, epochs=100, validation_data=(X_val, Y_val))
+    print(model.evaluate(X_test, Y_test)[1])
 
 if __name__ == '__main__':
     start_core()
