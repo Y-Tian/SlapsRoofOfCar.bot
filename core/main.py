@@ -6,7 +6,10 @@ from sklearn import preprocessing
 from sklearn.model_selection import train_test_split
 from keras.models import Sequential
 from keras.layers import Dense
+from keras.layers import Dropout
+from keras import regularizers
 import statistics
+import matplotlib.pyplot as plt
 
 autotrader_url = 'http://myslu.stlawu.edu/~clee/dataset/autotrader/retrieve.php?'
 csv_file = 'data.csv'
@@ -21,13 +24,20 @@ csv_file = 'data.csv'
 @click.option('--radius', default=100, help='Radius of car searches with respect to zip code')
 @click.option('--search_results', default=300, help='Amount of search results')
 @click.option('--without_csv', default=True, help='If you already have a csv ready')
-def start_core(car_make, car_model, zip_code, radius, search_results, without_csv):
+@click.option('--dry_run', default=False, help='Without saving the keras model')
+def start_core(car_make, car_model, zip_code, radius, search_results, without_csv, dry_run):
     if not without_csv:
         get_all_dataset(car_make, car_model, zip_code, radius, search_results)
     # preprocessing
     X_train, X_val, X_test, Y_train, Y_val, Y_test = get_all_preprocessing()
     # keras model
-    get_keras_model(X_train, X_val, X_test, Y_train, Y_val, Y_test)
+    model, hist = get_keras_model("", X_train, X_val, X_test, Y_train, Y_val, Y_test)
+    # keras saving
+    if not dry_run:
+        save_keras_model(model, car_make, car_model)
+    # visual plotting
+    get_visual_plot(hist, "loss")
+    get_visual_plot(hist, "accuracy")
 
 def get_all_dataset(car_make, car_model, zip_code, radius, search_results):
     click.echo('Grabbing data from Autotrader.com for %s %s at location %s' % (car_make, car_model, zip_code))
@@ -85,12 +95,45 @@ def format_input_dataset(dataset, median):
         new_dataset.append(temp_dataset)
     return new_dataset
 
-def get_keras_model(X_train, X_val, X_test, Y_train, Y_val, Y_test):
-    # model = Sequential([Dense(23, activation='relu', input_shape=(2,)), Dense(23, activation='relu'), Dense(1, activation='sigmoid'),])
-    model = Sequential([Dense(16, activation='relu', input_shape=(2,)), Dense(16, activation='relu'), Dense(1, activation='sigmoid'),])
-    model.compile(optimizer='sgd', loss='binary_crossentropy', metrics=['accuracy'])
-    hist = model.fit(X_train, Y_train, batch_size=14, epochs=100, validation_data=(X_val, Y_val))
-    print(model.evaluate(X_test, Y_test)[1])
+def get_keras_model(model_type, X_train, X_val, X_test, Y_train, Y_val, Y_test):
+    # Basic model
+    if model_type == "basic":
+        model = Sequential([Dense(16, activation='relu', input_shape=(2,)), Dense(16, activation='relu'), Dense(1, activation='sigmoid'),])
+        model.compile(optimizer='sgd', loss='binary_crossentropy', metrics=['accuracy'])
+        hist = model.fit(X_train, Y_train, batch_size=14, epochs=100, validation_data=(X_val, Y_val))
+        print(model.evaluate(X_test, Y_test)[1])
+
+        return model, hist
+
+    # Regularization model (does better because it reduces & eliminates overfitting)
+    model_regularized = Sequential([Dense(750, activation='relu', kernel_regularizer=regularizers.l2(0.01), input_shape=(2,)), Dropout(0.3), Dense(750, activation='relu', kernel_regularizer=regularizers.l2(0.01)), Dropout(0.3), Dense(750, activation='relu', kernel_regularizer=regularizers.l2(0.01)), Dropout(0.3), Dense(16, activation='relu', kernel_regularizer=regularizers.l2(0.01)), Dropout(0.3), Dense(1, activation='sigmoid', kernel_regularizer=regularizers.l2(0.01)),])
+    model_regularized.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+    hist_regularized = model_regularized.fit(X_train, Y_train, batch_size=16, epochs=100, validation_data=(X_val, Y_val))
+    print(model_regularized.evaluate(X_test, Y_test)[1])
+
+    return model_regularized, hist_regularized
+
+def save_keras_model(model, car_make, car_model):
+    model.save('%s_%s_model.h5' % (car_make, car_model))
+    print('Keras model saved.')
+
+def get_visual_plot(hist, plot_type):
+    if plot_type == "loss":
+        plt.plot(hist.history['loss'])
+        plt.plot(hist.history['val_loss'])
+        plt.title('Model loss')
+        plt.ylabel('Loss')
+        plt.xlabel('Epoch')
+        plt.legend(['Train', 'Val'], loc='upper right')
+        plt.show()
+    elif plot_type == "accuracy":
+        plt.plot(hist.history['acc'])
+        plt.plot(hist.history['val_acc'])
+        plt.title('Model accuracy')
+        plt.ylabel('Accuracy')
+        plt.xlabel('Epoch')
+        plt.legend(['Train', 'Val'], loc='lower right')
+        plt.show()
 
 if __name__ == '__main__':
     start_core()
