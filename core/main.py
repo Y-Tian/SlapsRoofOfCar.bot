@@ -4,6 +4,8 @@ import pandas as pd
 import numpy as np
 from sklearn import preprocessing
 from sklearn.model_selection import train_test_split
+from keras.models import Sequential
+from keras.layers import Dense
 
 autotrader_url = 'http://myslu.stlawu.edu/~clee/dataset/autotrader/retrieve.php?'
 csv_file = 'data.csv'
@@ -21,7 +23,10 @@ csv_file = 'data.csv'
 def start_core(car_make, car_model, zip_code, radius, search_results, without_csv):
     if not without_csv:
         get_all_dataset(car_make, car_model, zip_code, radius, search_results)
-    get_all_preprocessing()
+    # preprocessing
+    X_train, X_val, X_test, Y_train, Y_val, Y_test = get_all_preprocessing()
+    # keras model
+    get_keras_model(X_train, X_val, X_test, Y_train, Y_val, Y_test)
 
 def get_all_dataset(car_make, car_model, zip_code, radius, search_results):
     click.echo('Grabbing data from Autotrader.com for %s %s at location %s' % (car_make, car_model, zip_code))
@@ -53,10 +58,25 @@ def get_all_preprocessing():
     Y_scale = min_max_scaler.fit_transform(Y)
     X_train, X_val_and_test, Y_train, Y_val_and_test = train_test_split(X_scale, Y_scale, test_size=0.3)
     X_val, X_test, Y_val, Y_test = train_test_split(X_val_and_test, Y_val_and_test, test_size=0.5)
-    print(X_train.shape, X_val.shape, X_test.shape, Y_train.shape, Y_val.shape, Y_test.shape)
+    return X_train, X_val, X_test, Y_train, Y_val, Y_test
+
+def get_keras_model(X_train, X_val, X_test, Y_train, Y_val, Y_test):
+    model = Sequential([Dense(64, activation='relu', input_shape=(2,)), Dense(64, activation='relu'), Dense(1, activation='sigmoid'),])
+    model.compile(optimizer='sgd', loss='binary_crossentropy', metrics=['accuracy'])
+    hist = model.fit(X_train, Y_train, batch_size=16, epochs=1000, validation_data=(X_val, Y_val))
+    # model.evaluate(X_test, Y_test)[1]
 
 if __name__ == '__main__':
     start_core()
 
 
 # use the year and the mileage to predict the price
+# need to revamp the dataset to include a field with "above median price or not"
+# find median price of all datapoints, regardless of year and mileage
+
+# HIDDEN LAYER NODES
+# 𝑁ℎ=𝑁𝑠(𝛼∗(𝑁𝑖+𝑁𝑜))
+# 𝑁𝑖  = number of input neurons.
+# 𝑁𝑜 = number of output neurons.
+# 𝑁𝑠 = number of samples in training data set.
+# 𝛼 = an arbitrary scaling factor usually 2-10. (3 in the example case)
