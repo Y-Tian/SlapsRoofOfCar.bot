@@ -8,6 +8,7 @@ from keras.models import Sequential
 from keras.layers import Dense
 from keras.layers import Dropout
 from keras import regularizers
+from keras.models import load_model
 import statistics
 import matplotlib.pyplot as plt
 
@@ -15,29 +16,38 @@ autotrader_url = 'http://myslu.stlawu.edu/~clee/dataset/autotrader/retrieve.php?
 csv_file = 'data.csv'
 
 @click.command()
-# @click.option('--car_make', prompt='Car make', help='The brand of the car')
-# @click.option('--car_model', prompt='Car model', help='The model of the car')
-# @click.option('--zip_code', prompt='Zip code', help='Your zip code')
-@click.option('--car_make', default='kia', help='The brand of the car')
-@click.option('--car_model', default='forte', help='The model of the car')
-@click.option('--zip_code', default=32703, help='Your zip code')
+@click.option('--car_make', prompt='Car make', help='The brand of the car')
+@click.option('--car_model', prompt='Car model', help='The model of the car')
+@click.option('--car_year', prompt='Car year', help='The year the car was manufactured')
+@click.option('--car_price', prompt='Car list price', help='The current price listing of the car')
+@click.option('--car_mileage', prompt='Car mileage', help='The mileage of the car')
+@click.option('--zip_code', prompt='Zip code', help='Your zip code')
 @click.option('--radius', default=100, help='Radius of car searches with respect to zip code')
 @click.option('--search_results', default=300, help='Amount of search results')
 @click.option('--without_csv', default=True, help='If you already have a csv ready')
-@click.option('--dry_run', default=False, help='Without saving the keras model')
-def start_core(car_make, car_model, zip_code, radius, search_results, without_csv, dry_run):
+@click.option('--dry_run', default=False, help='Without creating and saving the keras model')
+@click.option('--without_plotting', default=True, help='Plotting for visual purposes')
+def start_core(car_make, car_model, car_year, car_price, car_mileage, zip_code, radius, search_results, without_csv, dry_run, without_plotting):
     if not without_csv:
         get_all_dataset(car_make, car_model, zip_code, radius, search_results)
-    # preprocessing
-    X_train, X_val, X_test, Y_train, Y_val, Y_test = get_all_preprocessing()
-    # keras model
-    model, hist = get_keras_model("", X_train, X_val, X_test, Y_train, Y_val, Y_test)
-    # keras saving
+
     if not dry_run:
+        # preprocessing
+        X_train, X_val, X_test, Y_train, Y_val, Y_test = get_all_preprocessing()
+        # keras model
+        model, hist = get_keras_model("", X_train, X_val, X_test, Y_train, Y_val, Y_test)
+        # keras saving
         save_keras_model(model, car_make, car_model)
+
     # visual plotting
-    get_visual_plot(hist, "loss")
-    get_visual_plot(hist, "accuracy")
+    if not without_plotting:
+        get_visual_plot(hist, "loss")
+        get_visual_plot(hist, "accuracy")
+
+    
+    # run prediction on trained model
+    trained_model = load_keras_model(car_make, car_model)
+    get_prediction_on_input(trained_model, car_year, car_price, car_mileage)
 
 def get_all_dataset(car_make, car_model, zip_code, radius, search_results):
     click.echo('Grabbing data from Autotrader.com for %s %s at location %s' % (car_make, car_model, zip_code))
@@ -116,6 +126,20 @@ def get_keras_model(model_type, X_train, X_val, X_test, Y_train, Y_val, Y_test):
 def save_keras_model(model, car_make, car_model):
     model.save('%s_%s_model.h5' % (car_make, car_model))
     print('Keras model saved.')
+
+def load_keras_model(car_make, car_model):
+    model = load_model('%s_%s_model.h5' % (car_make, car_model))
+    return model
+
+def get_prediction_on_input(model, car_year, car_price, car_mileage):
+    input_dataset = []
+    temp_dataset = []
+    temp_dataset.append(car_year)
+    temp_dataset.append(car_mileage)
+    input_dataset.append(temp_dataset)
+    print(input_dataset)
+    # prediction = model.predict(input_dataset)
+    # print(prediction)
 
 def get_visual_plot(hist, plot_type):
     if plot_type == "loss":
