@@ -46,7 +46,10 @@ def start_core(car_make, car_model, car_year, car_price, car_mileage, zip_code, 
 
     # run prediction on trained model
     trained_model = load_keras_model(car_make, car_model)
-    get_prediction_on_input(trained_model, float(car_year), float(car_price), float(car_mileage))
+    prediction = get_prediction_on_input(trained_model, float(car_year), float(car_price), float(car_mileage))
+
+    # gives advice to user
+    return_advice(prediction)
 
 def get_all_dataset(car_make, car_model, zip_code, radius, search_results):
     click.echo('Grabbing data from Autotrader.com for %s %s at location %s' % (car_make, car_model, zip_code))
@@ -69,9 +72,7 @@ def get_autotrader_data(tuple_of_car_info):
 def get_all_preprocessing():
     df = pd.read_csv(csv_file)
     dataset = df.values
-    dataset_x_prep_a = np.array(dataset[:,:1])
-    dataset_x_prep_b = np.array(dataset[:,2:])
-    X = np.concatenate((dataset_x_prep_a, dataset_x_prep_b), 1)
+    X = np.array(dataset)
     Y_temp = dataset[:,1:2]
     median_price = get_median_price(Y_temp)
     Y = format_input_dataset(Y_temp, median_price)
@@ -109,7 +110,7 @@ def format_input_dataset(dataset, median):
 def get_keras_model(model_type, X_train, X_val, X_test, Y_train, Y_val, Y_test):
     # Basic model
     if model_type == "basic":
-        model = Sequential([Dense(16, activation='relu', input_shape=(2,)), Dense(16, activation='relu'), Dense(1, activation='sigmoid'),])
+        model = Sequential([Dense(16, activation='relu', input_shape=(3,)), Dense(16, activation='relu'), Dense(1, activation='sigmoid'),])
         model.compile(optimizer='sgd', loss='binary_crossentropy', metrics=['accuracy'])
         hist = model.fit(X_train, Y_train, batch_size=14, epochs=100, validation_data=(X_val, Y_val))
         print(model.evaluate(X_test, Y_test)[1])
@@ -117,7 +118,7 @@ def get_keras_model(model_type, X_train, X_val, X_test, Y_train, Y_val, Y_test):
         return model, hist
 
     # Regularization model (does better because it reduces & eliminates overfitting)
-    model_regularized = Sequential([Dense(750, activation='relu', kernel_regularizer=regularizers.l2(0.01), input_shape=(2,)), Dropout(0.3), Dense(750, activation='relu', kernel_regularizer=regularizers.l2(0.01)), Dropout(0.3), Dense(750, activation='relu', kernel_regularizer=regularizers.l2(0.01)), Dropout(0.3), Dense(16, activation='relu', kernel_regularizer=regularizers.l2(0.01)), Dropout(0.3), Dense(1, activation='sigmoid', kernel_regularizer=regularizers.l2(0.01)),])
+    model_regularized = Sequential([Dense(750, activation='relu', kernel_regularizer=regularizers.l2(0.01), input_shape=(3,)), Dropout(0.3), Dense(750, activation='relu', kernel_regularizer=regularizers.l2(0.01)), Dropout(0.3), Dense(750, activation='relu', kernel_regularizer=regularizers.l2(0.01)), Dropout(0.3), Dense(16, activation='relu', kernel_regularizer=regularizers.l2(0.01)), Dropout(0.3), Dense(1, activation='sigmoid', kernel_regularizer=regularizers.l2(0.01)),])
     model_regularized.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
     hist_regularized = model_regularized.fit(X_train, Y_train, batch_size=16, epochs=100, validation_data=(X_val, Y_val))
     print(model_regularized.evaluate(X_test, Y_test)[1])
@@ -135,17 +136,22 @@ def load_keras_model(car_make, car_model):
 def get_prediction_on_input(model, car_year, car_price, car_mileage):
     df = pd.read_csv(csv_file)
     dataset = df.values
-    dataset_x_prep_a = np.array(dataset[:,:1])
-    dataset_x_prep_b = np.array(dataset[:,2:])
-    X = np.concatenate((dataset_x_prep_a, dataset_x_prep_b), 1)
-    input_dataset = np.array([[car_year, car_mileage]])
+    X = np.array(dataset)
+    input_dataset = np.array([[car_year, car_price, car_mileage]])
     input_dataset = np.concatenate((X, input_dataset), 0)
     min_max_scaler = preprocessing.MinMaxScaler()
     input_scale = min_max_scaler.fit_transform(input_dataset)
     input_scale = input_scale[-1]
     input_scale = np.array([input_scale])
     prediction = model.predict(input_scale, verbose=1)
-    print(prediction)
+    return prediction
+
+def return_advice(prediction):
+    temp = prediction[-1]
+    temp = temp[-1]
+    if temp >= 50:
+        print("Over evaluation")
+    print("Under evaluation")
 
 def get_visual_plot(hist, plot_type):
     if plot_type == "loss":
