@@ -44,10 +44,9 @@ def start_core(car_make, car_model, car_year, car_price, car_mileage, zip_code, 
         get_visual_plot(hist, "loss")
         get_visual_plot(hist, "accuracy")
 
-    
     # run prediction on trained model
     trained_model = load_keras_model(car_make, car_model)
-    get_prediction_on_input(trained_model, car_year, car_price, car_mileage)
+    get_prediction_on_input(trained_model, float(car_year), float(car_price), float(car_mileage))
 
 def get_all_dataset(car_make, car_model, zip_code, radius, search_results):
     click.echo('Grabbing data from Autotrader.com for %s %s at location %s' % (car_make, car_model, zip_code))
@@ -76,6 +75,7 @@ def get_all_preprocessing():
     Y_temp = dataset[:,1:2]
     median_price = get_median_price(Y_temp)
     Y = format_input_dataset(Y_temp, median_price)
+    Y = Y.astype(int)
     min_max_scaler = preprocessing.MinMaxScaler()
     X_scale = min_max_scaler.fit_transform(X)
     Y_scale = min_max_scaler.fit_transform(Y)
@@ -103,6 +103,7 @@ def format_input_dataset(dataset, median):
         for price in item:
             temp_dataset.append(compare_above_below_median(price, median))
         new_dataset.append(temp_dataset)
+    new_dataset = np.array(new_dataset)
     return new_dataset
 
 def get_keras_model(model_type, X_train, X_val, X_test, Y_train, Y_val, Y_test):
@@ -132,14 +133,19 @@ def load_keras_model(car_make, car_model):
     return model
 
 def get_prediction_on_input(model, car_year, car_price, car_mileage):
-    input_dataset = []
-    temp_dataset = []
-    temp_dataset.append(car_year)
-    temp_dataset.append(car_mileage)
-    input_dataset.append(temp_dataset)
-    print(input_dataset)
-    # prediction = model.predict(input_dataset)
-    # print(prediction)
+    df = pd.read_csv(csv_file)
+    dataset = df.values
+    dataset_x_prep_a = np.array(dataset[:,:1])
+    dataset_x_prep_b = np.array(dataset[:,2:])
+    X = np.concatenate((dataset_x_prep_a, dataset_x_prep_b), 1)
+    input_dataset = np.array([[car_year, car_mileage]])
+    input_dataset = np.concatenate((X, input_dataset), 0)
+    min_max_scaler = preprocessing.MinMaxScaler()
+    input_scale = min_max_scaler.fit_transform(input_dataset)
+    input_scale = input_scale[-1]
+    input_scale = np.array([input_scale])
+    prediction = model.predict(input_scale, verbose=1)
+    print(prediction)
 
 def get_visual_plot(hist, plot_type):
     if plot_type == "loss":
