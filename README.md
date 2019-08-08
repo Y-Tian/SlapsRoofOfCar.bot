@@ -15,12 +15,12 @@ specific car.
 
 ### Some examples of the model training & graphs of the results
 Model training:
-!(alt-text)[https://i.imgur.com/Y7hTZJR.png]
-!(alt-text)[https://i.imgur.com/uzY72Jn.png]
+![alt-text](https://i.imgur.com/Y7hTZJR.png)
+![alt-text](https://i.imgur.com/uzY72Jn.png)
 
 Model Loss & Accuracy graphs:
-!(alt-text)[https://i.imgur.com/qDunlIB.png]
-!(alt-text)[https://i.imgur.com/rfybUdc.png]
+![alt-text](https://i.imgur.com/qDunlIB.png)
+![alt-text](https://i.imgur.com/rfybUdc.png)
 
 
 ## Getting Started
