@@ -11,6 +11,18 @@ specific car.
 
 *Note: location and prices only in the US, limitation of the dataset.
 
+
+
+### Some examples of the model training & graphs of the results
+Model training:
+!(alt-text)[https://i.imgur.com/Y7hTZJR.png]
+!(alt-text)[https://i.imgur.com/uzY72Jn.png]
+
+Model Loss & Accuracy graphs:
+!(alt-text)[https://i.imgur.com/qDunlIB.png]
+!(alt-text)[https://i.imgur.com/rfybUdc.png]
+
+
 ## Getting Started
 
 These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
@@ -25,21 +37,30 @@ These instructions will get you a copy of the project up and running on your loc
 
 ### Installing
 
-1. Requires the following packages
+1. Requires the following packages to be installed onto your system
   * sklearn
   * pandas
   * numpy
   * keras
+  * matplotlib
 
 ## Running the tests
+1. (Optional)
+  * Use venv: `source bin/activate`
 
-1. To pull the dataset & preprocess the data
-  * `python3 main.py` with the **flags** `--car_make`, `--car_model`, `--zipcode`, `--radius`, `--search_results`, `--without_csv`
+2. To pull the dataset & preprocess the data
+  * `python3 main.py` with the **flags** `--radius`, `--search_results`, `--without_csv`, `--dry_run`
   * Use `--help` if you don't know what the flags represent!
+  
+3. The script will prompt you to enter in the details of the car you're currently interested in
+  * Ex. `kia`, `forte`, `2017`, `10.5` (thousand), `18.5` (thousand), `32703` (zipcode in Florida)
+
+4. Give the model some time to evaluate. The result should be printed after a minute or so: `Under evaluation` or `Over evaluation`
 
 ## Agenda
 
-1. Train the model with the processed dataset with keras!
+1. Create a web interface to run the simulation
+2. Reduce excessive deprecated logging from tensorflow
 
 ## Acknowledgments
 

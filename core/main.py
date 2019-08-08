@@ -13,7 +13,7 @@ import statistics
 import matplotlib.pyplot as plt
 
 autotrader_url = 'http://myslu.stlawu.edu/~clee/dataset/autotrader/retrieve.php?'
-csv_file = 'data.csv'
+csv_file_name = 'data.csv'
 
 @click.command()
 @click.option('--car_make', prompt='Car make', help='The brand of the car')
@@ -23,30 +23,27 @@ csv_file = 'data.csv'
 @click.option('--car_mileage', prompt='Car mileage', help='The mileage of the car')
 @click.option('--zip_code', prompt='Zip code', help='Your zip code')
 @click.option('--radius', default=100, help='Radius of car searches with respect to zip code')
-@click.option('--search_results', default=300, help='Amount of search results')
-@click.option('--without_csv', default=True, help='If you already have a csv ready')
+@click.option('--search_results', default=1000, help='Amount of search results')
+@click.option('--without_csv', default=False, help='If you already have a csv ready')
 @click.option('--dry_run', default=False, help='Without creating and saving the keras model')
-@click.option('--without_plotting', default=True, help='Plotting for visual purposes')
-def start_core(car_make, car_model, car_year, car_price, car_mileage, zip_code, radius, search_results, without_csv, dry_run, without_plotting):
+def start_core(car_make, car_model, car_year, car_price, car_mileage, zip_code, radius, search_results, without_csv, dry_run):
     if not without_csv:
         get_all_dataset(car_make, car_model, zip_code, radius, search_results)
 
     if not dry_run:
         # preprocessing
-        X_train, X_val, X_test, Y_train, Y_val, Y_test = get_all_preprocessing()
+        X_train, X_val, X_test, Y_train, Y_val, Y_test = get_all_preprocessing(car_make, car_model)
         # keras model
         model, hist = get_keras_model("", X_train, X_val, X_test, Y_train, Y_val, Y_test)
         # keras saving
         save_keras_model(model, car_make, car_model)
-
-    # visual plotting
-    if not without_plotting:
+        # visual plotting
         get_visual_plot(hist, "loss")
         get_visual_plot(hist, "accuracy")
 
     # run prediction on trained model
     trained_model = load_keras_model(car_make, car_model)
-    prediction = get_prediction_on_input(trained_model, float(car_year), float(car_price), float(car_mileage))
+    prediction = get_prediction_on_input(trained_model, car_make, car_model, float(car_year), float(car_price), float(car_mileage))
 
     # gives advice to user
     return_advice(prediction)
@@ -55,9 +52,9 @@ def get_all_dataset(car_make, car_model, zip_code, radius, search_results):
     click.echo('Grabbing data from Autotrader.com for %s %s at location %s' % (car_make, car_model, zip_code))
     tuple_of_car_info = (car_make, car_model, zip_code, radius, search_results)
     # write the csv into a local file
-    get_autotrader_data(tuple_of_car_info)
+    get_autotrader_data(tuple_of_car_info, car_make, car_model)
 
-def get_autotrader_data(tuple_of_car_info):
+def get_autotrader_data(tuple_of_car_info, car_make, car_model):
     temp_autotrader_url = autotrader_url
     temp_autotrader_url += ('make=%s' % tuple_of_car_info[0].upper())
     temp_autotrader_url += ('&model=%s' % tuple_of_car_info[1].upper())
@@ -66,11 +63,12 @@ def get_autotrader_data(tuple_of_car_info):
     temp_autotrader_url += ('&limit=%s' % tuple_of_car_info[4])
     resp = requests.get(temp_autotrader_url)
     data_text = resp.text
-    with open(csv_file, 'w') as f:
+    temp_csv_file = "%s_%s_%s" % (car_make, car_model, csv_file_name)
+    with open(temp_csv_file, 'w+') as f:
         f.write(data_text)
 
-def get_all_preprocessing():
-    df = pd.read_csv(csv_file)
+def get_all_preprocessing(car_make, car_model):
+    df = pd.read_csv("%s_%s_%s" % (car_make, car_model, csv_file_name))
     dataset = df.values
     X = np.array(dataset)
     Y_temp = dataset[:,1:2]
@@ -117,7 +115,7 @@ def get_keras_model(model_type, X_train, X_val, X_test, Y_train, Y_val, Y_test):
 
         return model, hist
 
-    # Regularization model (does better because it reduces & eliminates overfitting)
+    # Regularization model (does better because it tries to eliminate & reduce overfitting)
     model_regularized = Sequential([Dense(750, activation='relu', kernel_regularizer=regularizers.l2(0.01), input_shape=(3,)), Dropout(0.3), Dense(750, activation='relu', kernel_regularizer=regularizers.l2(0.01)), Dropout(0.3), Dense(750, activation='relu', kernel_regularizer=regularizers.l2(0.01)), Dropout(0.3), Dense(16, activation='relu', kernel_regularizer=regularizers.l2(0.01)), Dropout(0.3), Dense(1, activation='sigmoid', kernel_regularizer=regularizers.l2(0.01)),])
     model_regularized.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
     hist_regularized = model_regularized.fit(X_train, Y_train, batch_size=16, epochs=100, validation_data=(X_val, Y_val))
@@ -133,8 +131,8 @@ def load_keras_model(car_make, car_model):
     model = load_model('%s_%s_model.h5' % (car_make, car_model))
     return model
 
-def get_prediction_on_input(model, car_year, car_price, car_mileage):
-    df = pd.read_csv(csv_file)
+def get_prediction_on_input(model, car_make, car_model, car_year, car_price, car_mileage):
+    df = pd.read_csv("%s_%s_%s" % (car_make, car_model, csv_file_name))
     dataset = df.values
     X = np.array(dataset)
     input_dataset = np.array([[car_year, car_price, car_mileage]])
@@ -174,11 +172,7 @@ def get_visual_plot(hist, plot_type):
 if __name__ == '__main__':
     start_core()
 
-
-# use the year and the mileage to predict the price
-# need to revamp the dataset to include a field with "above median price or not"
-# find median price of all datapoints, regardless of year and mileage
-
+# Neural network architecture computation
 # HIDDEN LAYER NODES
 # 𝑁ℎ=𝑁𝑠(𝛼∗(𝑁𝑖+𝑁𝑜))
 # 𝑁𝑖  = number of input neurons.
