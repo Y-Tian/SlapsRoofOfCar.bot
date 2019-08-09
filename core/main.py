@@ -23,7 +23,7 @@ csv_file_name = 'data.csv'
 @click.option('--car_mileage', prompt='Car mileage', help='The mileage of the car')
 @click.option('--zip_code', prompt='Zip code', help='Your zip code')
 @click.option('--radius', default=100, help='Radius of car searches with respect to zip code')
-@click.option('--search_results', default=1000, help='Amount of search results')
+@click.option('--search_results', default=500, help='Amount of search results')
 @click.option('--without_csv', default=False, help='If you already have a csv ready')
 @click.option('--dry_run', default=False, help='Without creating and saving the keras model')
 def start_core(car_make, car_model, car_year, car_price, car_mileage, zip_code, radius, search_results, without_csv, dry_run):
